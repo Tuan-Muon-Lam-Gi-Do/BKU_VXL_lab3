@@ -1,0 +1,3 @@
+Input_processing.c:20:6:fsm_for_button1	8	static
+Input_processing.c:52:6:fsm_for_button2	8	static
+Input_processing.c:92:6:fsm_for_button3	8	static

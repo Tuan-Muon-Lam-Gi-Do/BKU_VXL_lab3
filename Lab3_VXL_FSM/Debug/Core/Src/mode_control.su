@@ -1,0 +1,5 @@
+mode_control.c:15:6:modeControl_init	4	static
+mode_control.c:24:6:modeControl_processButton1	8	static
+mode_control.c:36:6:modeControl_processButton2	8	static
+mode_control.c:45:6:modeControl_processButton3	8	static
+mode_control.c:54:6:modeControl_update	8	static

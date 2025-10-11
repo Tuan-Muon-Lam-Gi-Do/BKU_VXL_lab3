@@ -19,14 +19,23 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "software_timer.h"
+#include"button.h"
+#include "fsm.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef enum {
+  S_RED_GREEN,
+  S_RED_AMBER,
+  S_GREEN_RED,
+  S_AMBER_RED
+} TrafficState;
 
 /* USER CODE END PTD */
 
@@ -43,18 +52,146 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-
+TrafficState state = S_RED_GREEN;
+int counter = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_TIM2_Init(void);
+static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-
+void display_state(void);
+void fsm_update(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// Buffer 7-segment cho 4 LED (2 cáº·p)
+uint8_t led7segBuffer[4]; // [0]=cáº·p1 hÃ ng chá»¥c, [1]=cáº·p1 hÃ ng Ä‘Æ¡n vá»‹, [2]=cáº·p2 hÃ ng chá»¥c, [3]=cáº·p2 hÃ ng Ä‘Æ¡n vá»‹
+const uint8_t SEGMENTS[10] = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
+
+void updateLedBuffer(uint8_t number, uint8_t pair) {
+    if(number > 99) number = 99;
+    if(pair == 0) {
+        led7segBuffer[0] = SEGMENTS[number / 10];
+        led7segBuffer[1] = SEGMENTS[number % 10];
+    } else if(pair == 1) {
+        led7segBuffer[2] = SEGMENTS[number / 10];
+        led7segBuffer[3] = SEGMENTS[number % 10];
+    }
+}
+
+
+// Táº¯t táº¥t cáº£ EN
+void display7SEG_off(void) {
+    HAL_GPIO_WritePin(GPIOA, EN1_Pin|EN2_Pin|EN3_Pin|EN4_Pin, GPIO_PIN_SET);
+}
+
+// Xuáº¥t dá»¯ liá»‡u 7-segment ra chÃ¢n a-g
+void output7SEG(uint8_t value) {
+    HAL_GPIO_WritePin(GPIOB, a_Pin, (value & 0x01) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, b_Pin, (value & 0x02) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, c_Pin, (value & 0x04) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, d_Pin, (value & 0x08) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, e_Pin, (value & 0x10) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, f_Pin, (value & 0x20) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOB, g_Pin, (value & 0x40) ? GPIO_PIN_RESET : GPIO_PIN_SET);
+}
+
+// QuÃ©t 4 LED 7-segment
+void update7SEG(void) {
+    static uint8_t digit = 0; // 0->3
+
+    display7SEG_off(); // táº¯t háº¿t EN trÆ°á»›c
+
+    switch(digit) {
+        case 0: output7SEG(led7segBuffer[0]); HAL_GPIO_WritePin(GPIOA, EN1_Pin, GPIO_PIN_RESET); break;
+        case 1: output7SEG(led7segBuffer[1]); HAL_GPIO_WritePin(GPIOA, EN2_Pin, GPIO_PIN_RESET); break;
+        case 2: output7SEG(led7segBuffer[2]); HAL_GPIO_WritePin(GPIOA, EN3_Pin, GPIO_PIN_RESET); break;
+        case 3: output7SEG(led7segBuffer[3]); HAL_GPIO_WritePin(GPIOA, EN4_Pin, GPIO_PIN_RESET); break;
+    }
+
+    digit = (digit + 1) % 4; // sang digit káº¿ tiáº¿p
+}
+
+
+
+void display_state(void)
+{
+  // Táº¯t háº¿t
+  HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
+
+  switch (state)
+  {
+    case S_RED_GREEN:
+      HAL_GPIO_WritePin(GPIOA, Red_1_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, Green_2_Pin, GPIO_PIN_RESET);
+      break;
+
+    case S_RED_AMBER:
+      HAL_GPIO_WritePin(GPIOA, Red_1_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, Amber_2_Pin, GPIO_PIN_RESET);
+      break;
+
+    case S_GREEN_RED:
+      HAL_GPIO_WritePin(GPIOA, Green_1_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, Red_2_Pin, GPIO_PIN_RESET);
+      break;
+
+    case S_AMBER_RED:
+      HAL_GPIO_WritePin(GPIOA, Amber_1_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, Red_2_Pin, GPIO_PIN_RESET);
+      break;
+  }
+}
+
+// --- FSM Cáº¬P NHáº¬T TRáº NG THï¿½?I ---
+
+// HÃ m FSM cáº­p nháº­t tráº¡ng thÃ¡i dá»±a trÃªn counter
+int led_counter;
+void fsm_update(void) {
+    switch (state) {
+        case S_RED_GREEN:
+            // RED bÃªn trÃ¡i, GREEN bÃªn pháº£i
+            // Cáº£ hai cáº·p Ä‘Ã¨n hiá»ƒn thá»‹ thá»i gian Ä‘á» (trÃ¡i) = green_time + amber_time
+            counter = amber_time;
+            led_counter = amber_time;
+            state = S_RED_AMBER;
+            setTimer1(amber_time * 105);
+            break;
+
+        case S_RED_AMBER:
+            // RED bÃªn trÃ¡i, AMBER bÃªn pháº£i
+            // Cáº£ hai cáº·p Ä‘Ã¨n hiá»ƒn thá»‹ thá»i gian vÃ ng
+        	counter=green_time;
+            led_counter = red_time;
+            state = S_GREEN_RED;
+            setTimer1(green_time * 105);
+            break;
+
+        case S_GREEN_RED:
+            // GREEN bÃªn trÃ¡i, RED bÃªn pháº£i
+        	counter=amber_time;
+            state = S_AMBER_RED;
+            setTimer1(amber_time * 105);
+            break;
+
+        case S_AMBER_RED:
+            // AMBER bÃªn trÃ¡i, RED bÃªn pháº£i
+            // Cáº£ hai cáº·p Ä‘Ã¨n hiá»ƒn thá»‹ thá»i gian vÃ ng
+            counter = green_time;
+            led_counter=green_time;
+            state = S_RED_GREEN;
+            setTimer1(green_time * 105);
+            break;
+    }
+
+    display_state(); // Cáº­p nháº­t tráº¡ng thÃ¡i Ä‘Ã¨n giao thÃ´ng
+}
+
+
 
 /* USER CODE END 0 */
 
@@ -86,18 +223,52 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_TIM2_Init();
+  MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
-  }
+state = S_RED_GREEN;
+counter = green_time;
+led_counter=2;
+setTimer1(green_time * 100);
+setTimer1s(100);
+setTimer2(2);
+display_state();
+updateLedBuffer(counter, 0);
+updateLedBuffer(counter, 1);
+while (1) {
+    /* Quét 7-seg mỗi 10ms */
+    if (timer2_flag == 1){
+        timer2_flag = 0;
+        update7SEG();
+        setTimer2(2);
+    }
+
+    // Xử lý FSM cho các nút bấm
+    fsm_handle_buttons();
+
+    if(mode == MODE_1) {
+        if (timer1s_flag == 1) {
+            timer1s_flag = 0;
+            updateLedBuffer(led_counter, 0);
+            updateLedBuffer(led_counter, 1);
+            if (led_counter > 1) led_counter--;
+            setTimer1s(100);
+        }
+
+        if(timer1_flag == 1){
+            timer1_flag = 0;
+            fsm_update();
+        }
+    } else {
+            fsm_update_display();
+
+    }
+}
   /* USER CODE END 3 */
 }
 
@@ -181,9 +352,75 @@ static void MX_TIM2_Init(void)
 
 }
 
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin
+                          |Amber_2_Pin|Green_2_Pin|EN1_Pin|EN2_Pin
+                          |EN3_Pin|EN4_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, a_Pin|b_Pin|c1_Pin|d1_Pin
+                          |e1_Pin|f1_Pin|g1_Pin|c_Pin
+                          |d_Pin|e_Pin|f_Pin|g_Pin
+                          |a1_Pin|b1_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : BUTTON_1_Pin */
+  GPIO_InitStruct.Pin = BUTTON_1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(BUTTON_1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Red_1_Pin Amber_1_Pin Green_1_Pin Red_2_Pin
+                           Amber_2_Pin Green_2_Pin EN1_Pin EN2_Pin
+                           EN3_Pin EN4_Pin */
+  GPIO_InitStruct.Pin = Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin
+                          |Amber_2_Pin|Green_2_Pin|EN1_Pin|EN2_Pin
+                          |EN3_Pin|EN4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : a_Pin b_Pin c1_Pin d1_Pin
+                           e1_Pin f1_Pin g1_Pin c_Pin
+                           d_Pin e_Pin f_Pin g_Pin
+                           a1_Pin b1_Pin */
+  GPIO_InitStruct.Pin = a_Pin|b_Pin|c1_Pin|d1_Pin
+                          |e1_Pin|f1_Pin|g1_Pin|c_Pin
+                          |d_Pin|e_Pin|f_Pin|g_Pin
+                          |a1_Pin|b1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : BUTTON_2_Pin BUTTON_3_Pin */
+  GPIO_InitStruct.Pin = BUTTON_2_Pin|BUTTON_3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+}
+
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-
+  if (htim->Instance == TIM2) {
+getKeyInput();
+    timerRun();
+}
 }
 /* USER CODE END 4 */
 

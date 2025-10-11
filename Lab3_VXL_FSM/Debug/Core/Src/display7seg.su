@@ -1,0 +1,5 @@
+display7seg.c:22:6:display7SEG	24	static
+display7seg.c:34:6:update7SEG	16	static
+display7seg.c:65:6:display7SEG_pair	16	static
+display7seg.c:75:6:display_run_time	16	static
+display7seg.c:81:6:display_mode_adjust	24	static
