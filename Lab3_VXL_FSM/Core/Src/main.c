@@ -30,12 +30,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
-  S_RED_GREEN,
-  S_RED_AMBER,
-  S_GREEN_RED,
-  S_AMBER_RED
-} TrafficState;
 
 /* USER CODE END PTD */
 
@@ -52,8 +46,7 @@ typedef enum {
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-TrafficState state = S_RED_GREEN;
-int counter = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,7 +62,7 @@ void fsm_update(void);
 /* USER CODE BEGIN 0 */
 
 // Buffer 7-segment cho 4 LED (2 cáº·p)
-uint8_t led7segBuffer[4]; // [0]=cáº·p1 hÃ ng chá»¥c, [1]=cáº·p1 hÃ ng Ä‘Æ¡n vá»‹, [2]=cáº·p2 hÃ ng chá»¥c, [3]=cáº·p2 hÃ ng Ä‘Æ¡n vá»‹
+uint8_t led7segBuffer[4];
 const uint8_t SEGMENTS[10] = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
 
 void updateLedBuffer(uint8_t number, uint8_t pair) {
@@ -84,12 +77,12 @@ void updateLedBuffer(uint8_t number, uint8_t pair) {
 }
 
 
-// Táº¯t táº¥t cáº£ EN
+
 void display7SEG_off(void) {
     HAL_GPIO_WritePin(GPIOA, EN1_Pin|EN2_Pin|EN3_Pin|EN4_Pin, GPIO_PIN_SET);
 }
 
-// Xuáº¥t dá»¯ liá»‡u 7-segment ra chÃ¢n a-g
+
 void output7SEG(uint8_t value) {
     HAL_GPIO_WritePin(GPIOB, a_Pin, (value & 0x01) ? GPIO_PIN_RESET : GPIO_PIN_SET);
     HAL_GPIO_WritePin(GPIOB, b_Pin, (value & 0x02) ? GPIO_PIN_RESET : GPIO_PIN_SET);
@@ -100,11 +93,11 @@ void output7SEG(uint8_t value) {
     HAL_GPIO_WritePin(GPIOB, g_Pin, (value & 0x40) ? GPIO_PIN_RESET : GPIO_PIN_SET);
 }
 
-// QuÃ©t 4 LED 7-segment
-void update7SEG(void) {
-    static uint8_t digit = 0; // 0->3
 
-    display7SEG_off(); // táº¯t háº¿t EN trÆ°á»›c
+void update7SEG(void) {
+    static uint8_t digit = 0;
+
+    display7SEG_off();
 
     switch(digit) {
         case 0: output7SEG(led7segBuffer[0]); HAL_GPIO_WritePin(GPIOA, EN1_Pin, GPIO_PIN_RESET); break;
@@ -113,7 +106,7 @@ void update7SEG(void) {
         case 3: output7SEG(led7segBuffer[3]); HAL_GPIO_WritePin(GPIOA, EN4_Pin, GPIO_PIN_RESET); break;
     }
 
-    digit = (digit + 1) % 4; // sang digit káº¿ tiáº¿p
+    digit = (digit + 1) % 4;
 }
 
 

@@ -20,6 +20,20 @@ extern int temp_red_time;
 extern int temp_amber_time;
 extern int temp_green_time;
 
+typedef enum {
+  S_RED_GREEN,
+  S_RED_AMBER,
+  S_GREEN_RED,
+  S_AMBER_RED
+} TrafficState;
+
+extern TrafficState state;
+extern int counter;
+extern int led_counter;
+
+void display_state(void);
+void updateLedBuffer(uint8_t number, uint8_t pair);
+
 // Hàm xử lý FSM
 void fsm_init(void);
 void fsm_handle_buttons(void);

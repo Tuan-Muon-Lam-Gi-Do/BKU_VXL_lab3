@@ -11,6 +11,9 @@ int green_time = 3;
 int temp_red_time = 5;
 int temp_amber_time = 2;
 int temp_green_time = 3;
+TrafficState state = S_RED_GREEN;
+int counter = 0;
+int led_counter = 2;  // Khởi tạo bằng 0 hoặc giá trị mặc định của bạn
 
 // Biến cho nhấp nháy
 int blink_flag = 0;
@@ -27,7 +30,15 @@ void fsm_handle_buttons(void) {
     // Nút 1: Chuyển mode
     if(isButton1Pressed()) {
         mode++;
-        if(mode > MODE_4) mode = MODE_1;
+        if(mode > MODE_4){
+            state = S_RED_GREEN;  // Reset về trạng thái ban đầu (như trong main())
+            counter = green_time; // Reset counter về giá trị ban đầu cho S_RED_GREEN
+            led_counter=green_time-1;
+            setTimer1(green_time * 105);
+            setTimer1s(100);
+            display_state();
+        	 mode = MODE_1;
+        }
 
         // Reset biến tạm khi chuyển mode
         temp_red_time = red_time;
@@ -35,6 +46,7 @@ void fsm_handle_buttons(void) {
         temp_green_time = green_time;
         blink_flag = 0;
         blink_counter = 0;
+
     }
 
     // Nút 2: Tăng thời gian (trong mode cài đặt)
