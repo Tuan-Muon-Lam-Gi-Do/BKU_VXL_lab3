@@ -13,7 +13,11 @@ int temp_amber_time = 2;
 int temp_green_time = 3;
 TrafficState state = S_RED_GREEN;
 int counter = 0;
-int led_counter = 2;  // Khởi tạo bằng 0 hoặc giá trị mặc định của bạn
+int led_counter_left = 0;
+int led_counter_right = 0;
+// Thêm vào fsm.c
+int error_flag = 0;
+int error_counter = 0;
 
 // Biến cho nhấp nháy
 int blink_flag = 0;
@@ -31,13 +35,16 @@ void fsm_handle_buttons(void) {
     if(isButton1Pressed()) {
         mode++;
         if(mode > MODE_4){
-            state = S_RED_GREEN;  // Reset về trạng thái ban đầu (như trong main())
-            counter = green_time; // Reset counter về giá trị ban đầu cho S_RED_GREEN
-            led_counter=green_time-1;
-            setTimer1(green_time * 105);
+            state = S_RED_GREEN;
+            counter = green_time;
+
+            led_counter_left = green_time + amber_time;
+            led_counter_right = green_time;
+            setTimer1(green_time * 100);
             setTimer1s(100);
             display_state();
-        	 mode = MODE_1;
+            updateLedBuffer(led_counter_left, led_counter_right);
+            mode = MODE_1;
         }
 
         // Reset biến tạm khi chuyển mode
@@ -46,6 +53,9 @@ void fsm_handle_buttons(void) {
         temp_green_time = green_time;
         blink_flag = 0;
         blink_counter = 0;
+        blink_flag = 0; // Luôn bắt đầu ở trạng thái TẮT
+        setTimer3(50);  // Đặt hẹn giờ 50 * 10ms = 500ms (0.5s)
+            // ---------------
 
     }
 
@@ -102,71 +112,73 @@ void fsm_update_display(void) {
 
         case MODE_2:
             // Nhấp nháy đèn đỏ và hiển thị thời gian đèn đỏ
-            blink_counter++;
-            if(blink_counter >= 3000) { // Nhấp nháy 0.5s
-                blink_counter = 0;
-                blink_flag = !blink_flag;
+        	if(timer3_flag == 1) {
+        	            timer3_flag = 0;   // Xóa cờ
+        	            setTimer3(50);     // Đặt lại hẹn giờ cho 0.5s tiếp theo
+        	            blink_flag = !blink_flag; // Đảo trạng thái công tắc
+        	        }
 
-                if(blink_flag) {
-                    // Bật đèn đỏ cả 2 hướng
-                    HAL_GPIO_WritePin(GPIOA, Red_1_Pin, GPIO_PIN_RESET);
-                    HAL_GPIO_WritePin(GPIOA, Red_2_Pin, GPIO_PIN_RESET);
-                    // Tắt các đèn khác
-                    HAL_GPIO_WritePin(GPIOA, Amber_1_Pin|Amber_2_Pin|Green_1_Pin|Green_2_Pin, GPIO_PIN_SET);
-                } else {
-                    // Tắt tất cả đèn
-                    HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
-                }
-            }
+        	        // 2. Cập nhật LED dựa trên trạng thái 'blink_flag'
+        	        // Logic này chạy liên tục, giữ trạng thái TẮT hoặc BẬT
+        	        if(blink_flag) {
+        	            // Bật đèn đỏ cả 2 hướng
+        	            HAL_GPIO_WritePin(GPIOA, Red_1_Pin, GPIO_PIN_RESET);
+        	            HAL_GPIO_WritePin(GPIOA, Red_2_Pin, GPIO_PIN_RESET);
+        	            // Tắt các đèn khác
+        	            HAL_GPIO_WritePin(GPIOA, Amber_1_Pin|Amber_2_Pin|Green_1_Pin|Green_2_Pin, GPIO_PIN_SET);
+        	        } else {
+        	            // Tắt tất cả đèn
+        	            HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
+        	        }
             // Cập nhật LED 7 đoạn với thời gian đèn đỏ
-            updateLedBuffer(temp_red_time, 0);
-            updateLedBuffer(temp_red_time, 1);
+            updateLedBuffer(2, 0);
+            updateLedBuffer(temp_red_time, 2);
             break;
 
         case MODE_3:
             // Nhấp nháy đèn vàng và hiển thị thời gian đèn vàng
-            blink_counter++;
-            if(blink_counter >= 3000) {
-                blink_counter = 0;
-                blink_flag = !blink_flag;
+        	if(timer3_flag == 1) {
+        	            timer3_flag = 0;
+        	            setTimer3(50);
+        	            blink_flag = !blink_flag;
+        	        }
 
-                if(blink_flag) {
-                    // Bật đèn vàng cả 2 hướng
-                    HAL_GPIO_WritePin(GPIOA, Amber_1_Pin, GPIO_PIN_RESET);
-                    HAL_GPIO_WritePin(GPIOA, Amber_2_Pin, GPIO_PIN_RESET);
-                    // Tắt các đèn khác
-                    HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Red_2_Pin|Green_1_Pin|Green_2_Pin, GPIO_PIN_SET);
-                } else {
-                    // Tắt tất cả đèn
-                    HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
-                }
-            }
-            // Cập nhật LED 7 đoạn với thời gian đèn vàng
-            updateLedBuffer(temp_amber_time, 0);
-            updateLedBuffer(temp_amber_time, 1);
+        	        if(blink_flag) {
+        	            // Bật đèn vàng cả 2 hướng
+        	            HAL_GPIO_WritePin(GPIOA, Amber_1_Pin, GPIO_PIN_RESET);
+        	            HAL_GPIO_WritePin(GPIOA, Amber_2_Pin, GPIO_PIN_RESET);
+        	            // Tắt các đèn khác
+        	            HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Red_2_Pin|Green_1_Pin|Green_2_Pin, GPIO_PIN_SET);
+        	        } else {
+        	            // Tắt tất cả đèn
+        	            HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
+        	        }
+            updateLedBuffer(3, 0);
+            updateLedBuffer(temp_amber_time, 3);
             break;
 
         case MODE_4:
             // Nhấp nháy đèn xanh và hiển thị thời gian đèn xanh
-            blink_counter++;
-            if(blink_counter >= 3000) {
-                blink_counter = 0;
-                blink_flag = !blink_flag;
+        	if(timer3_flag == 1) {
+        	            timer3_flag = 0;
+        	            setTimer3(50);
+        	            blink_flag = !blink_flag;
+        	        }
 
-                if(blink_flag) {
-                    // Bật đèn xanh cả 2 hướng
-                    HAL_GPIO_WritePin(GPIOA, Green_1_Pin, GPIO_PIN_RESET);
-                    HAL_GPIO_WritePin(GPIOA, Green_2_Pin, GPIO_PIN_RESET);
-                    // Tắt các đèn khác
-                    HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Red_2_Pin|Amber_1_Pin|Amber_2_Pin, GPIO_PIN_SET);
-                } else {
-                    // Tắt tất cả đèn
-                    HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
-                }
-            }
+        	        if(blink_flag) {
+        	            // Bật đèn xanh cả 2 hướng
+        	            HAL_GPIO_WritePin(GPIOA, Green_1_Pin, GPIO_PIN_RESET);
+        	            HAL_GPIO_WritePin(GPIOA, Green_2_Pin, GPIO_PIN_RESET);
+        	            // Tắt các đèn khác
+        	            HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Red_2_Pin|Amber_1_Pin|Amber_2_Pin, GPIO_PIN_SET);
+        	        } else {
+        	            // Tắt tất cả đèn
+        	            HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
+        	        }
             // Cập nhật LED 7 đoạn với thời gian đèn xanh
-            updateLedBuffer(temp_green_time, 0);
-            updateLedBuffer(temp_green_time, 1);
+            updateLedBuffer(4, 0);
+            updateLedBuffer(temp_green_time, 4);
             break;
     }
 }
+

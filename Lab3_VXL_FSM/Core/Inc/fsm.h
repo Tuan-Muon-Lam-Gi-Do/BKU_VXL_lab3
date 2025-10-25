@@ -19,6 +19,10 @@ extern int green_time;
 extern int temp_red_time;
 extern int temp_amber_time;
 extern int temp_green_time;
+extern int led_counter_left;
+extern int led_counter_right;
+// Thêm vào fsm.h
+
 
 typedef enum {
   S_RED_GREEN,
@@ -29,7 +33,7 @@ typedef enum {
 
 extern TrafficState state;
 extern int counter;
-extern int led_counter;
+
 
 void display_state(void);
 void updateLedBuffer(uint8_t number, uint8_t pair);

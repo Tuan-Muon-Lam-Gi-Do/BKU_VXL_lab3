@@ -13,5 +13,7 @@
 
 
 int isButton1Pressed();
-void getkeyInput();
+int isButton2Pressed();
+int isButton3Pressed();
+void getKeyInput();
 #endif /* INC_BUTTON_H_ */

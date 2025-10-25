@@ -65,15 +65,14 @@ void fsm_update(void);
 uint8_t led7segBuffer[4];
 const uint8_t SEGMENTS[10] = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
 
-void updateLedBuffer(uint8_t number, uint8_t pair) {
-    if(number > 99) number = 99;
-    if(pair == 0) {
-        led7segBuffer[0] = SEGMENTS[number / 10];
-        led7segBuffer[1] = SEGMENTS[number % 10];
-    } else if(pair == 1) {
-        led7segBuffer[2] = SEGMENTS[number / 10];
-        led7segBuffer[3] = SEGMENTS[number % 10];
-    }
+void updateLedBuffer(uint8_t number_left, uint8_t number_right) {
+    if(number_left > 99) number_left = 99;
+    if(number_right > 99) number_right = 99;
+
+    led7segBuffer[0] = SEGMENTS[number_left / 10];
+    led7segBuffer[1] = SEGMENTS[number_left % 10];
+    led7segBuffer[2] = SEGMENTS[number_right / 10];
+    led7segBuffer[3] = SEGMENTS[number_right % 10];
 }
 
 
@@ -143,45 +142,49 @@ void display_state(void)
 // --- FSM Cáº¬P NHáº¬T TRáº NG THï¿½?I ---
 
 // HÃ m FSM cáº­p nháº­t tráº¡ng thÃ¡i dá»±a trÃªn counter
-int led_counter;
+
 void fsm_update(void) {
     switch (state) {
         case S_RED_GREEN:
-            // RED bÃªn trÃ¡i, GREEN bÃªn pháº£i
-            // Cáº£ hai cáº·p Ä‘Ã¨n hiá»ƒn thá»‹ thá»i gian Ä‘á» (trÃ¡i) = green_time + amber_time
+            // Hướng trái: ĐỎ, Hướng phải: XANH
+            led_counter_left = amber_time;  // 3 + 2 = 5
+            led_counter_right = amber_time;              // 3
             counter = amber_time;
-            led_counter = amber_time;
             state = S_RED_AMBER;
-            setTimer1(amber_time * 105);
+            setTimer1(amber_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
             break;
 
         case S_RED_AMBER:
-            // RED bÃªn trÃ¡i, AMBER bÃªn pháº£i
-            // Cáº£ hai cáº·p Ä‘Ã¨n hiá»ƒn thá»‹ thá»i gian vÃ ng
-        	counter=green_time;
-            led_counter = red_time;
+            // Hướng trái: ĐỎ, Hướng phải: VÀNG
+            led_counter_left = green_time;               // 2
+            led_counter_right = amber_time + green_time;              //
+            counter = green_time;
             state = S_GREEN_RED;
-            setTimer1(green_time * 105);
+            setTimer1(green_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
             break;
 
         case S_GREEN_RED:
-            // GREEN bÃªn trÃ¡i, RED bÃªn pháº£i
-        	counter=amber_time;
+            // Hướng trái: XANH, Hướng phải: ĐỎ
+            led_counter_left = amber_time;               // 3
+            led_counter_right = amber_time; // 3 + 2 = 5
+            counter = amber_time;
             state = S_AMBER_RED;
-            setTimer1(amber_time * 105);
+            setTimer1(amber_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
             break;
 
         case S_AMBER_RED:
-            // AMBER bÃªn trÃ¡i, RED bÃªn pháº£i
-            // Cáº£ hai cáº·p Ä‘Ã¨n hiá»ƒn thá»‹ thá»i gian vÃ ng
+            // Hướng trái: VÀNG, Hướng phải: ĐỎ
+            led_counter_left = amber_time + green_time;               // 2
+            led_counter_right = green_time;              // 2
             counter = green_time;
-            led_counter=green_time;
             state = S_RED_GREEN;
-            setTimer1(green_time * 105);
+            setTimer1(green_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
             break;
     }
+    display_state();
 
-    display_state(); // Cáº­p nháº­t tráº¡ng thÃ¡i Ä‘Ã¨n giao thÃ´ng
+    // CẬP NHẬT NGAY LED SAU KHI CHUYỂN TRẠNG THÁI
+    updateLedBuffer(led_counter_left, led_counter_right);
 }
 
 
@@ -226,13 +229,13 @@ HAL_TIM_Base_Start_IT(&htim2);
 
 state = S_RED_GREEN;
 counter = green_time;
-led_counter=2;
-setTimer1(green_time * 100);
+led_counter_left = green_time + amber_time;  // 5
+led_counter_right = green_time;              // 3
+setTimer1(green_time * 100);  // ĐỒNG BỘ: 100
 setTimer1s(100);
 setTimer2(2);
 display_state();
-updateLedBuffer(counter, 0);
-updateLedBuffer(counter, 1);
+updateLedBuffer(led_counter_left, led_counter_right);
 while (1) {
     /* Quét 7-seg mỗi 10ms */
     if (timer2_flag == 1){
@@ -245,13 +248,32 @@ while (1) {
     fsm_handle_buttons();
 
     if(mode == MODE_1) {
-        if (timer1s_flag == 1) {
-            timer1s_flag = 0;
-            updateLedBuffer(led_counter, 0);
-            updateLedBuffer(led_counter, 1);
-            if (led_counter > 1) led_counter--;
-            setTimer1s(100);
-        }
+    	if(green_time + amber_time != red_time){
+    	        // RESET CÁC BIẾN TOÀN CỤC VỀ GIÁ TRỊ MẶC ĐỊNH
+    	        red_time = 5;
+    	        green_time = 3;
+    	        amber_time = 2;
+
+    	        // Reset trạng thái hệ thống
+    	        state = S_RED_GREEN;
+    	        counter = green_time;
+    	        led_counter_left = green_time + amber_time;  // 5
+    	        led_counter_right = green_time;              // 3
+    	        setTimer1(green_time * 100);
+    	        setTimer1s(100);
+    	        display_state();
+    	        updateLedBuffer(led_counter_left, led_counter_right);
+    	    }
+    	if (timer1s_flag == 1) {
+    	    timer1s_flag = 0;
+
+    	    // SỬA: Đếm đến 1, không phải đến 0
+    	    if (led_counter_left > 1) led_counter_left--;
+    	    if (led_counter_right > 1) led_counter_right--;
+
+    	    updateLedBuffer(led_counter_left, led_counter_right);
+    	    setTimer1s(100);
+    	}
 
         if(timer1_flag == 1){
             timer1_flag = 0;
@@ -450,3 +472,5 @@ void assert_failed(uint8_t *file, uint32_t line)
 #endif /* USE_FULL_ASSERT */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
+

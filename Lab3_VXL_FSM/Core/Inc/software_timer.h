@@ -8,6 +8,8 @@
 #ifndef INC_SOFTWARE_TIMER_H_
 #define INC_SOFTWARE_TIMER_H_
 
+
+#define TIMER_TICK_MS 1;
 extern int timer1_flag;
 extern int timer2_flag;
 extern int timer1s_flag;
