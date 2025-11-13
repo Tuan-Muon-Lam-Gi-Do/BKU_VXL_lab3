@@ -12,16 +12,17 @@
   * This software component is licensed by ST under BSD 3-Clause license,
   * the "License"; You may not use this file except in compliance with the
   * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * opensource.org/licenses/BSD-3-Clause
   *
   ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "software_timer.h"
-#include"button.h"
+// #include "software_timer.h" // --- XÓA ---
+#include "button.h"
 #include "fsm.h"
+#include "scheduler.h" // --- THÊM ---
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -54,28 +55,23 @@ void SystemClock_Config(void);
 static void MX_TIM2_Init(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-void display_state(void);
-void fsm_update(void);
+// --- XÓA --- (Đã chuyển sang fsm.h)
+// void display_state(void);
+// void fsm_update(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-// Buffer 7-segment cho 4 LED (2 cáº·p)
-uint8_t led7segBuffer[4];
-const uint8_t SEGMENTS[10] = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
-
-void updateLedBuffer(uint8_t number_left, uint8_t number_right) {
-    if(number_left > 99) number_left = 99;
-    if(number_right > 99) number_right = 99;
-
-    led7segBuffer[0] = SEGMENTS[number_left / 10];
-    led7segBuffer[1] = SEGMENTS[number_left % 10];
-    led7segBuffer[2] = SEGMENTS[number_right / 10];
-    led7segBuffer[3] = SEGMENTS[number_right % 10];
-}
+// --- XÓA TOÀN BỘ CÁC HÀM LOGIC ĐÃ CHUYỂN SANG fsm.c ---
+// uint8_t led7segBuffer[4];
+// const uint8_t SEGMENTS[10] = {...};
+// void updateLedBuffer(...) { ... }
+// void fsm_update(void) { ... }
 
 
+// --- GIỮ LẠI CÁC HÀM LÁI LED 7-SEG CẤP THẤP ---
+// (Bạn cũng có thể chuyển các hàm này sang fsm.c nếu muốn)
 
 void display7SEG_off(void) {
     HAL_GPIO_WritePin(GPIOA, EN1_Pin|EN2_Pin|EN3_Pin|EN4_Pin, GPIO_PIN_SET);
@@ -94,6 +90,8 @@ void output7SEG(uint8_t value) {
 
 
 void update7SEG(void) {
+    // Lấy buffer từ fsm.c (nếu bạn khai báo nó là extern)
+    extern uint8_t led7segBuffer[4];
     static uint8_t digit = 0;
 
     display7SEG_off();
@@ -107,86 +105,6 @@ void update7SEG(void) {
 
     digit = (digit + 1) % 4;
 }
-
-
-
-void display_state(void)
-{
-  // Táº¯t háº¿t
-  HAL_GPIO_WritePin(GPIOA, Red_1_Pin|Amber_1_Pin|Green_1_Pin|Red_2_Pin|Amber_2_Pin|Green_2_Pin, GPIO_PIN_SET);
-
-  switch (state)
-  {
-    case S_RED_GREEN:
-      HAL_GPIO_WritePin(GPIOA, Red_1_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOA, Green_2_Pin, GPIO_PIN_RESET);
-      break;
-
-    case S_RED_AMBER:
-      HAL_GPIO_WritePin(GPIOA, Red_1_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOA, Amber_2_Pin, GPIO_PIN_RESET);
-      break;
-
-    case S_GREEN_RED:
-      HAL_GPIO_WritePin(GPIOA, Green_1_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOA, Red_2_Pin, GPIO_PIN_RESET);
-      break;
-
-    case S_AMBER_RED:
-      HAL_GPIO_WritePin(GPIOA, Amber_1_Pin, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOA, Red_2_Pin, GPIO_PIN_RESET);
-      break;
-  }
-}
-
-// --- FSM Cáº¬P NHáº¬T TRáº NG THï¿½?I ---
-
-// HÃ m FSM cáº­p nháº­t tráº¡ng thÃ¡i dá»±a trÃªn counter
-
-void fsm_update(void) {
-    switch (state) {
-        case S_RED_GREEN:
-            // Hướng trái: ĐỎ, Hướng phải: XANH
-            led_counter_left = amber_time;  // 3 + 2 = 5
-            led_counter_right = amber_time;              // 3
-            counter = amber_time;
-            state = S_RED_AMBER;
-            setTimer1(amber_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
-            break;
-
-        case S_RED_AMBER:
-            // Hướng trái: ĐỎ, Hướng phải: VÀNG
-            led_counter_left = green_time;               // 2
-            led_counter_right = amber_time + green_time;              //
-            counter = green_time;
-            state = S_GREEN_RED;
-            setTimer1(green_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
-            break;
-
-        case S_GREEN_RED:
-            // Hướng trái: XANH, Hướng phải: ĐỎ
-            led_counter_left = amber_time;               // 3
-            led_counter_right = amber_time; // 3 + 2 = 5
-            counter = amber_time;
-            state = S_AMBER_RED;
-            setTimer1(amber_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
-            break;
-
-        case S_AMBER_RED:
-            // Hướng trái: VÀNG, Hướng phải: ĐỎ
-            led_counter_left = amber_time + green_time;               // 2
-            led_counter_right = green_time;              // 2
-            counter = green_time;
-            state = S_RED_GREEN;
-            setTimer1(green_time * 100);  // ĐỒNG BỘ: 100 thay vì 105
-            break;
-    }
-    display_state();
-
-    // CẬP NHẬT NGAY LED SAU KHI CHUYỂN TRẠNG THÁI
-    updateLedBuffer(led_counter_left, led_counter_right);
-}
-
 
 
 /* USER CODE END 0 */
@@ -221,69 +139,50 @@ int main(void)
   MX_TIM2_Init();
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_Base_Start_IT(&htim2);
+
+  // --- THÊM PHẦN KHỞI TẠO SCHEDULER ---
+  SCH_Init();
+  fsm_init(); // Khởi tạo FSM (hàm này trong fsm.c)
+
+  // Thêm các task vào bộ lập lịch
+  // Tick timer là 10ms (từ MX_TIM2_Init)
+  // 1. Task quét nút nhấn: chạy mỗi 10ms (1 tick)
+  SCH_Add_Task(getKeyInput, 0, 1);
+
+  // 2. Task quét LED 7-seg: chạy mỗi 10ms (1 tick), offset 1 tick
+  // (Lưu ý: 10ms cho 4 số (40ms refresh) có thể hơi nháy,
+  // nếu muốn mượt hơn, bạn cần cấu hình TIM2 tick 1ms)
+  SCH_Add_Task(update7SEG, 1, 1);
+
+  // 3. Task FSM chính: chạy mỗi 10ms (1 tick), offset 2 ticks
+  SCH_Add_Task(fsm_run, 2, 1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-state = S_RED_GREEN;
-counter = green_time;
-led_counter_left = green_time + amber_time;  // 5
-led_counter_right = green_time;              // 3
-setTimer1(green_time * 100);  // ĐỒNG BỘ: 100
-setTimer1s(100);
-setTimer2(2);
-display_state();
-updateLedBuffer(led_counter_left, led_counter_right);
-while (1) {
-    /* Quét 7-seg mỗi 10ms */
-    if (timer2_flag == 1){
-        timer2_flag = 0;
-        update7SEG();
-        setTimer2(2);
-    }
+  // --- XÓA TẤT CẢ LOGIC KHỞI TẠO CŨ ---
+  // state = S_RED_GREEN;
+  // ...
+  // updateLedBuffer(led_counter_left, led_counter_right);
 
-    // Xử lý FSM cho các nút bấm
+  while (1) {
+    // --- THAY THẾ TOÀN BỘ VÒNG LẶP ---
+    SCH_Dispatch_Tasks(); // Chỉ cần chạy bộ điều phối task
+
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+    // --- XÓA TẤT CẢ LOGIC TRONG NÀY ---
+    /*
+    if (timer2_flag == 1){ ... }
     fsm_handle_buttons();
-
-    if(mode == MODE_1) {
-    	if(green_time + amber_time != red_time){
-    	        // RESET CÁC BIẾN TOÀN CỤC VỀ GIÁ TRỊ MẶC ĐỊNH
-    	        red_time = 5;
-    	        green_time = 3;
-    	        amber_time = 2;
-
-    	        // Reset trạng thái hệ thống
-    	        state = S_RED_GREEN;
-    	        counter = green_time;
-    	        led_counter_left = green_time + amber_time;  // 5
-    	        led_counter_right = green_time;              // 3
-    	        setTimer1(green_time * 100);
-    	        setTimer1s(100);
-    	        display_state();
-    	        updateLedBuffer(led_counter_left, led_counter_right);
-    	    }
-    	if (timer1s_flag == 1) {
-    	    timer1s_flag = 0;
-
-    	    // SỬA: Đếm đến 1, không phải đến 0
-    	    if (led_counter_left > 1) led_counter_left--;
-    	    if (led_counter_right > 1) led_counter_right--;
-
-    	    updateLedBuffer(led_counter_left, led_counter_right);
-    	    setTimer1s(100);
-    	}
-
-        if(timer1_flag == 1){
-            timer1_flag = 0;
-            fsm_update();
-        }
-    } else {
-            fsm_update_display();
-
-    }
-}
+    if(mode == MODE_1) { ... }
+    else { ... }
+    */
+  }
   /* USER CODE END 3 */
 }
 
@@ -293,6 +192,7 @@ while (1) {
   */
 void SystemClock_Config(void)
 {
+  // (Giữ nguyên)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
@@ -329,7 +229,7 @@ void SystemClock_Config(void)
   */
 static void MX_TIM2_Init(void)
 {
-
+  // (Giữ nguyên - đây là 10ms tick)
   /* USER CODE BEGIN TIM2_Init 0 */
 
   /* USER CODE END TIM2_Init 0 */
@@ -374,6 +274,7 @@ static void MX_TIM2_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  // (Giữ nguyên)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
@@ -431,11 +332,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+// --- SỬA LẠI NGẮT TIMER ---
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
   if (htim->Instance == TIM2) {
-getKeyInput();
-    timerRun();
-}
+    // Báo cho bộ lập lịch biết 1 tick đã trôi qua
+    SCH_Update();
+
+    // --- XÓA ---
+    // getKeyInput();
+    // timerRun();
+  }
 }
 /* USER CODE END 4 */
 
@@ -445,6 +352,7 @@ getKeyInput();
   */
 void Error_Handler(void)
 {
+  // (Giữ nguyên)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
@@ -457,7 +365,7 @@ void Error_Handler(void)
 #ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
+  * where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None
@@ -472,5 +380,3 @@ void assert_failed(uint8_t *file, uint32_t line)
 #endif /* USE_FULL_ASSERT */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
-
-

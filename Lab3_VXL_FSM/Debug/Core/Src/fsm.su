@@ -1,3 +1,7 @@
-fsm.c:26:6:fsm_init	4	static
-fsm.c:33:6:fsm_handle_buttons	8	static
-fsm.c:97:6:fsm_update_display	8	static
+fsm.c:33:6:updateLedBuffer	16	static
+fsm.c:44:6:display_state	8	static
+fsm.c:75:6:fsm_update	8	static
+fsm.c:116:6:fsm_init	8	static
+fsm.c:143:6:fsm_handle_buttons	8	static
+fsm.c:199:6:fsm_update_display	8	static
+fsm.c:247:6:fsm_run	8	static

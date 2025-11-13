@@ -40,7 +40,9 @@ void updateLedBuffer(uint8_t number, uint8_t pair);
 
 // Hàm xử lý FSM
 void fsm_init(void);
+void fsm_run(void);          // <--- THÊM VÀO (Task chính)
 void fsm_handle_buttons(void);
 void fsm_update_display(void);
-
+void fsm_update(void);       // <--- THÊM VÀO (Chuyển từ main.c)
+void display_state(void);    // <--- THÊM VÀO (Chuyển từ main.c)
 #endif
