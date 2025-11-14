@@ -1,9 +1,9 @@
 #include "fsm.h"
 #include "button.h"
 #include "main.h"
-#include "scheduler.h" // Sử dụng bộ lập lịch
+#include "scheduler.h"
 
-// Định nghĩa các biến toàn cục (chỉ ở đây)
+// Định nghĩa các biến toàn cục
 SystemMode mode = MODE_1;
 int red_time = 5;
 int amber_time = 2;
@@ -12,20 +12,18 @@ int temp_red_time = 5;
 int temp_amber_time = 2;
 int temp_green_time = 3;
 TrafficState state = S_RED_GREEN;
-int counter = 0; // Biến này có vẻ không còn được dùng, nhưng giữ lại
+int counter = 0;
 int led_counter_left = 0;
 int led_counter_right = 0;
 
 // Biến cho nhấp nháy
 int blink_flag = 0;
 
-// Các biến đếm nội bộ thay thế cho software_timer
 // Đơn vị là 'ticks' (1 tick = 10ms)
 static int fsm_timer_counter = 0;   // Thay thế cho timer1 (chuyển trạng thái FSM)
 static int fsm_1sec_counter = 0;    // Thay thế cho timer1s (đếm lùi 7-seg)
 static int fsm_blink_counter = 0; // Thay thế cho timer3 (nháy đèn)
 
-// --- Di chuyển từ main.c ---
 // Buffer 7-segment cho 4 LED (2 cặp)
 uint8_t led7segBuffer[4];
 const uint8_t SEGMENTS[10] = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
@@ -70,7 +68,6 @@ void display_state(void)
   }
 }
 
-// --- Di chuyển từ main.c và Sửa đổi ---
 // Hàm FSM cập nhật trạng thái dựa trên counter
 void fsm_update(void) {
     switch (state) {
@@ -112,7 +109,6 @@ void fsm_update(void) {
     updateLedBuffer(led_counter_left, led_counter_right);
 }
 
-// --- Sửa đổi ---
 void fsm_init(void) {
 
     // Reset biến tạm
@@ -120,7 +116,7 @@ void fsm_init(void) {
     temp_amber_time = amber_time;
     temp_green_time = green_time;
 
-    // Đặt trạng thái ban đầu (từ main.c)
+    // Đặt trạng thái ban đầu
     mode = MODE_1;
     state = S_RED_GREEN;
     counter = green_time;
@@ -271,7 +267,7 @@ void fsm_run(void) {
             updateLedBuffer(led_counter_left, led_counter_right);
         }
 
-        // Xử lý chuyển trạng thái đèn (thay cho timer1)
+        // Xử lý chuyển trạng thái đèn
         if (fsm_timer_counter > 0) {
             fsm_timer_counter--;
         }
@@ -283,7 +279,7 @@ void fsm_run(void) {
     else {
         // Đây là MODE 2, 3, hoặc 4 (Mode cài đặt)
 
-        // Xử lý nhấp nháy (thay cho timer3)
+        // Xử lý nhấp nháy
         if (fsm_blink_counter > 0) {
             fsm_blink_counter--;
         }

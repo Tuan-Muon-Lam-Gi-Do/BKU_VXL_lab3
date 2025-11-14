@@ -143,15 +143,13 @@ int main(void)
 
   // --- THÊM PHẦN KHỞI TẠO SCHEDULER ---
   SCH_Init();
-  fsm_init(); // Khởi tạo FSM (hàm này trong fsm.c)
+  fsm_init(); // Khởi tạo FSM
 
-  // Thêm các task vào bộ lập lịch
   // Tick timer là 10ms (từ MX_TIM2_Init)
   // 1. Task quét nút nhấn: chạy mỗi 10ms (1 tick)
   SCH_Add_Task(getKeyInput, 0, 1);
 
   // 2. Task quét LED 7-seg: chạy mỗi 10ms (1 tick), offset 1 tick
-  // (Lưu ý: 10ms cho 4 số (40ms refresh) có thể hơi nháy,
   // nếu muốn mượt hơn, bạn cần cấu hình TIM2 tick 1ms)
   SCH_Add_Task(update7SEG, 1, 1);
 
@@ -162,26 +160,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-  // --- XÓA TẤT CẢ LOGIC KHỞI TẠO CŨ ---
-  // state = S_RED_GREEN;
-  // ...
-  // updateLedBuffer(led_counter_left, led_counter_right);
-
   while (1) {
-    // --- THAY THẾ TOÀN BỘ VÒNG LẶP ---
-    SCH_Dispatch_Tasks(); // Chỉ cần chạy bộ điều phối task
+    SCH_Dispatch_Tasks();
 
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-    // --- XÓA TẤT CẢ LOGIC TRONG NÀY ---
-    /*
-    if (timer2_flag == 1){ ... }
-    fsm_handle_buttons();
-    if(mode == MODE_1) { ... }
-    else { ... }
-    */
   }
   /* USER CODE END 3 */
 }
@@ -339,9 +320,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     // Báo cho bộ lập lịch biết 1 tick đã trôi qua
     SCH_Update();
 
-    // --- XÓA ---
-    // getKeyInput();
-    // timerRun();
   }
 }
 /* USER CODE END 4 */
